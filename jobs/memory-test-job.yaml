@@ -1,0 +1,36 @@
+# GPU memory test: runs DCGM's "medium" diagnostic (level 2), which covers
+# GPU memory bandwidth, SM stress, and a memory-focused pass distinct from
+# the longer full-stress diagnostic in gpu-stress-job.yaml.
+#
+# Usage: NODE_NAME=gpu-node-1 envsubst < jobs/memory-test-job.yaml | kubectl apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gpu-memory-test-${NODE_NAME}
+  namespace: gpu-fleet-health
+  labels:
+    app: gpu-fleet-health
+    check: gpu-memory
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: gpu-fleet-health
+        check: gpu-memory
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: "${NODE_NAME}"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: dcgm-diag
+          image: nvcr.io/nvidia/cloud-native/dcgm:3.3.5-1-ubuntu22.04
+          command: ["dcgmi", "diag", "-r", "2"]
+          resources:
+            limits:
+              nvidia.com/gpu: "1"

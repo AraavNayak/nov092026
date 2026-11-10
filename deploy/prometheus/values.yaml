@@ -1,0 +1,23 @@
+# Values for prometheus-community/kube-prometheus-stack
+# Deploys Prometheus + Grafana + Alertmanager together.
+# DCGM metrics are scraped via the ServiceMonitor shipped with the GPU Operator
+# (see hack/install-gpu-stack.sh) once running on real GPU nodes.
+
+grafana:
+  enabled: true
+  adminPassword: admin
+  service:
+    type: ClusterIP
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 2d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+alertmanager:
+  enabled: true

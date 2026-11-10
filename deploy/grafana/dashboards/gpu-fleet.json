@@ -1,0 +1,85 @@
+{
+  "title": "GPU Fleet Health",
+  "uid": "gpu-fleet-health",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "GPU Utilization by Node",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "DCGM_FI_DEV_GPU_UTIL",
+          "legendFormat": "{{Hostname}} gpu{{gpu}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "GPU Temperature (C)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "DCGM_FI_DEV_GPU_TEMP",
+          "legendFormat": "{{Hostname}} gpu{{gpu}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "ECC Double-Bit Errors (XID 48/63/64 proxy)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "DCGM_FI_DEV_ECC_DBE_VOL_TOTAL",
+          "legendFormat": "{{Hostname}} gpu{{gpu}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "GPU Memory Used (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "100 * DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE)",
+          "legendFormat": "{{Hostname}} gpu{{gpu}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "NVLink/PCIe Throughput (bytes/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(DCGM_FI_PROF_NVLINK_TX_BYTES[1m])",
+          "legendFormat": "{{Hostname}} gpu{{gpu}} tx"
+        },
+        {
+          "expr": "rate(DCGM_FI_PROF_NVLINK_RX_BYTES[1m])",
+          "legendFormat": "{{Hostname}} gpu{{gpu}} rx"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Nodes Cordoned by Controller",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(kube_node_spec_unschedulable)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+# Inter-node bandwidth test: two pods run a torch.distributed all-reduce
+# loop over NCCL and report achieved bandwidth. Pod 0 is rank 0 (rendezvous
+# host), pod 1 is rank 1, matched to distinct nodes via podAntiAffinity so
+# the test actually exercises the inter-node network path (not NVLink on a
+# single box).
+#
+# Usage: kubectl apply -f jobs/nccl-bandwidth-job.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nccl-bandwidth-test
+  namespace: gpu-fleet-health
+spec:
+  clusterIP: None
+  selector:
+    app: gpu-fleet-health
+    check: nccl-bandwidth
+  ports:
+    - port: 29500
+      name: rendezvous
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nccl-bandwidth-script
+  namespace: gpu-fleet-health
+data:
+  allreduce_bench.py: |
+    import os
+    import time
+    import torch
+    import torch.distributed as dist
+
+    def main():
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        dist.init_process_group("nccl", rank=rank, world_size=world_size)
+        torch.cuda.set_device(0)
+
+        size_mb = 512
+        numel = (size_mb * 1024 * 1024) // 4
+        tensor = torch.ones(numel, dtype=torch.float32, device="cuda")
+
+        # warmup
+        for _ in range(5):
+            dist.all_reduce(tensor)
+        torch.cuda.synchronize()
+
+        iters = 20
+        start = time.time()
+        for _ in range(iters):
+            dist.all_reduce(tensor)
+        torch.cuda.synchronize()
+        elapsed = time.time() - start
+
+        bytes_moved = numel * 4 * 2 * (world_size - 1) / world_size * iters
+        bandwidth_gbps = (bytes_moved / elapsed) / 1e9
+        if rank == 0:
+            print(f"all_reduce bandwidth: {bandwidth_gbps:.2f} GB/s over {iters} iters, {size_mb}MB tensor")
+        dist.destroy_process_group()
+
+    if __name__ == "__main__":
+        main()
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nccl-bandwidth-test
+  namespace: gpu-fleet-health
+  labels:
+    app: gpu-fleet-health
+    check: nccl-bandwidth
+spec:
+  backoffLimit: 0
+  completions: 2
+  parallelism: 2
+  completionMode: Indexed
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: gpu-fleet-health
+        check: nccl-bandwidth
+    spec:
+      restartPolicy: Never
+      subdomain: nccl-bandwidth-test
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  check: nccl-bandwidth
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: nccl-bench
+          image: pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
+          command: ["python", "/scripts/allreduce_bench.py"]
+          env:
+            - name: RANK
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+            - name: WORLD_SIZE
+              value: "2"
+            - name: MASTER_ADDR
+              value: "nccl-bandwidth-test-0.nccl-bandwidth-test"
+            - name: MASTER_PORT
+              value: "29500"
+            - name: NCCL_DEBUG
+              value: "WARN"
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: script
+          configMap:
+            name: nccl-bandwidth-script

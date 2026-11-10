@@ -1,0 +1,40 @@
+# GPU stress test: runs NVIDIA DCGM's built-in "long" diagnostic (level 3),
+# which exercises every GPU on the target node under sustained load and
+# reports per-GPU pass/fail plus any thermal/ECC/XID errors it triggers.
+# Requires the GPU Operator + DCGM to be installed (hack/install-gpu-stack.sh)
+# and a node with schedulable nvidia.com/gpu resources.
+#
+# Usage: envsubst < jobs/gpu-stress-job.yaml | kubectl apply -f -
+# with NODE_NAME set to the target node, e.g.:
+#   NODE_NAME=gpu-node-1 envsubst < jobs/gpu-stress-job.yaml | kubectl apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gpu-stress-test-${NODE_NAME}
+  namespace: gpu-fleet-health
+  labels:
+    app: gpu-fleet-health
+    check: gpu-stress
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app: gpu-fleet-health
+        check: gpu-stress
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: "${NODE_NAME}"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: dcgm-diag
+          image: nvcr.io/nvidia/cloud-native/dcgm:3.3.5-1-ubuntu22.04
+          command: ["dcgmi", "diag", "-r", "3"]
+          resources:
+            limits:
+              nvidia.com/gpu: "1"

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-fleet-controller
+  namespace: gpu-fleet-health
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpu-fleet-controller
+  template:
+    metadata:
+      labels:
+        app: gpu-fleet-controller
+    spec:
+      serviceAccountName: gpu-fleet-controller
+      containers:
+        - name: controller
+          image: gpu-fleet-controller:dev
+          args:
+            - --prometheus-url=http://kube-prometheus-stack-prometheus.monitoring:9090
+            - --requeue-interval=30s
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

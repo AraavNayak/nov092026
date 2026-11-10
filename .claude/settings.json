@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kind create cluster*)",
+      "Bash(kind get clusters*)",
+      "Bash(kind delete cluster*)",
+      "Bash(kind version*)",
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)",
+      "Bash(kubectl apply *)",
+      "Bash(kubectl create namespace*)",
+      "Bash(kubectl create *)",
+      "Bash(kubectl logs *)",
+      "Bash(kubectl version*)",
+      "Bash(kubectl cluster-info*)",
+      "Bash(helm repo add*)",
+      "Bash(helm repo update*)",
+      "Bash(helm install*)",
+      "Bash(helm upgrade*)",
+      "Bash(helm search *)",
+      "Bash(helm version*)",
+      "Bash(go build*)",
+      "Bash(go mod *)",
+      "Bash(go version*)",
+      "Bash(go vet*)",
+      "Bash(brew install*)",
+      "Bash(brew list*)",
+      "Bash(brew --prefix*)",
+      "Bash(docker info*)",
+      "Bash(docker manifest inspect*)",
+      "Bash(docker ps*)"
+    ]
+  }
+}
